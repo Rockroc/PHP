@@ -1,0 +1,74 @@
+<?php
+    $conn=mysql_connect("localhost","root","123456");//链接数据库
+    mysql_select_db("city");//选择数据库
+    mysql_query("set names 'utf8'");//设定字符集
+    $sql="select * from province";//查询数据库province表也就是省
+    $result=mysql_query($sql);//执行语句赋值给变量
+?>
+<style>
+    #province,#city,#area{width:100px;}
+</style>
+<body>
+<select id="province">
+    <option>请选择省</option>
+    <?php
+    while($row=mysql_fetch_row($result)){
+    //循环循环查询显示省输出数据显示
+        echo "<option value='$row[1]'>$row[2]</option>/n";
+    }
+    ?>
+</select>
+<select id="city">
+    <option>请选择市</option>
+</select>
+<select id="area">
+    <option>请选择区</option>
+</select>
+<script src="./jquery.js"></script>
+<script>
+    $(function(){
+        $("#province").bind("change",function(){
+            $('#city').html('<option>请选择市</option>');
+            $('#area').html('<option>请选择区</option>');
+            $.ajax({     
+                url:'set.php',     
+                type:'post',     
+                data:'province='+$(this).val(),     
+                async : false, //默认为true 异步     
+                error:function(){     
+                   alert('error');     
+                },     
+                success:function(data){
+                    var jsonObj=eval("("+data+")");  
+                    $.each(jsonObj, function (i, item) {
+                        var html = "<option value='"+item[0]+"'>"+item[1]+"</option>"
+                        $('#city').append(html);
+                    });    
+                }  
+            }); 
+        });
+        
+        $("#city").bind("change",function(){
+            $('#area').html('<option>请选择区</option>');
+            $.ajax({     
+                url:'set.php',     
+                type:'post',     
+                data:'city='+$(this).val(),     
+                async : false, //默认为true 异步     
+                error:function(){     
+                   alert('error');     
+                },     
+                success:function(data){
+                    var jsonObj=eval("("+data+")");  
+                    $.each(jsonObj, function (i, item) {
+                        var html = "<option value='"+item[0]+"'>"+item[1]+"</option>"
+                        $('#area').append(html);
+                    });    
+                }  
+            }); 
+        });
+        
+    })
+</script>
+
+</body>

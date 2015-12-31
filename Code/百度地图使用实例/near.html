@@ -1,0 +1,292 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>附近门店</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1, maximum-scale=1">
+    <link rel="stylesheet" href="./style/near.css"/>
+    <script src="./js/jquery-2.1.4.min.js"></script>
+    <script src="./js/area.js"></script>
+    <script src="./js/layer/layer.js"></script>
+    <script type="text/javascript" src="http://api.map.baidu.com/api?v=2.0&ak=YIjdDENupKI3zHmuTioRP3t6"></script>
+</head>
+<body>
+    <div id="advert">
+        <img src="./images/gg1.jpg" width="100%" />
+    </div>
+    <div id="main">
+        <div class="search">
+			<input type="hidden" value="2" id="page" />
+            <input type="hidden" value="" id="lng" />
+            <input type="hidden" value="" id="lat" />
+            <input type="hidden" value="" id="origin" />
+            <input class="search_input" type="text" placeholder="输入您要搜索的内容" />
+            <select id="province" class="search_select">
+
+            </select>
+            <select id="city" class="search_select">
+
+            </select>
+            <select id="type" class="search_select">
+                <option value="" data-i18n="service.type">类型</option>
+                <option value="OPERATOR" data-i18n="dealer_type.OPERATOR">运营商</option>
+                <option value="FLAGSHIP_STORE" data-i18n="dealer_type.FLAGSHIP_STORE">旗舰店</option>
+                <option value="EXCLUSIVE_STORE" data-i18n="dealer_type.EXCLUSIVE_STORE">专卖店</option>
+                <option value="RETAILER" data-i18n="dealer_type.RETAILER">零售商</option>
+                <option value="RESTAURANT" data-i18n="dealer_type.RESTAURANT">餐饮店</option>
+            </select>
+            <input class="search_button" type="button" value="查找" />
+        </div>
+
+        <div id="list">
+
+
+        </div>
+
+        <div id="load"><img width="16" src="./images/load.gif" /></div>
+
+        <div id="allmap"></div>
+    </div>
+    <script>
+    var loading = layer.load();
+    //获取当前所在地的省和市
+    var map = new BMap.Map("allmap");
+    var point = new BMap.Point(116.331398,39.897445);
+    map.centerAndZoom(point,12);
+
+    var geolocation = new BMap.Geolocation();
+    geolocation.getCurrentPosition(function(r){
+        if(this.getStatus() == BMAP_STATUS_SUCCESS){
+            var mk = new BMap.Marker(r.point);
+            map.addOverlay(mk);
+            map.panTo(r.point);
+            // alert('您的位置：'+r.point.lng+','+r.point.lat);
+            $("#lng").val(r.point.lng);
+            $("#lat").val(r.point.lat);
+
+            var point = new BMap.Point(r.point.lng,r.point.lat);
+            var gc = new BMap.Geocoder();
+            gc.getLocation(point, function(rs){
+                var addComp = rs.addressComponents;
+                var origin = addComp.province + addComp.city + addComp.district + addComp.street + addComp.streetNumber;
+                $("#origin").val(origin);
+                var provice = addComp.province;
+                var city = addComp.city;
+
+                //得到省市对应的ID
+                var provinceHTML = "";
+                for(i in areaArr){
+                    if(areaArr[i]['name'] == provice){
+                        provinceHTML += "<option value='"+areaArr[i]['id']+"' selected>"+areaArr[i]['name']+"</option>";
+                        var index = i;
+                        var proviceId = areaArr[i]['id'];
+                        //continue;
+                    }else{
+                        provinceHTML += "<option value='"+areaArr[i]['id']+"'>"+areaArr[i]['name']+"</option>";
+                    }
+                }
+                $("#province").html(provinceHTML);
+
+                var cityArr = areaArr[index]['children'];
+                var cityHTML = "<option value data-i18n='service.city'>市</option>";
+                for(j in  cityArr){
+
+                    if(cityArr[j]['name'] == city){
+                        cityHTML += "<option value='"+cityArr[j]['id']+"' selected>"+cityArr[j]['name']+"</option>";
+                        var cityId  = cityArr[j]['id'];
+                        //continue;
+                    }else{
+                        cityHTML += "<option value='"+cityArr[j]['id']+"'>"+cityArr[j]['name']+"</option>";
+                    }
+                }
+                $("#city").html(cityHTML);
+
+                $.ajax({
+                    url  : 'app.php',
+                    type : 'get',
+                    data : {proviceId:proviceId,cityId:cityId,lng: r.point.lng,lat: r.point.lat},
+                    dataType : 'json',
+                    success : function(data){
+                          //alert(data);
+                          //var json = eval("("+data+")");
+                          //alert(json['dealers'][0].name);
+                          //document.write(data);
+                        var json = eval("("+data+")");
+                        var html = '';
+                        for(var i=0; i<json['dealers'].length; i++){
+                            html += "<div class='list_box'> <ul> <li> <span>"+json['dealers'][i].name+"</span> <span class='distance'>"+json['dealers'][i].distance+"</span> </li> <li class='phone'>"+json['dealers'][i].phone+"</li> <li class='address'> <p class='openmap' lng='"+json['dealers'][i].lng+"' lat='"+json['dealers'][i].lat+"'>"+json['dealers'][i].address+"</p> </li> </ul> </div>";
+
+                        }
+                        $("#list").append(html);
+                        layer.close(loading);
+                    }
+
+                })
+                //alert(proviceId);
+                //alert(cityId);
+
+
+                //alert(addComp.province + ", " + addComp.city + ", " + addComp.district + ", " + addComp.street + ", " + addComp.streetNumber);
+            });
+        }
+        else {
+            alert('failed'+this.getStatus());
+        }
+    },{enableHighAccuracy: true});
+    </script>
+
+    <script>
+        $(function(){
+            $("#province").change(function(){
+                var id = $(this).val()-2;
+                var cityArr2 = areaArr[id]['children'];
+                var cityHTML2 = "<option value data-i18n='service.city'>市</option>";
+                for(k in  cityArr2){
+                    cityHTML2 += "<option value='"+cityArr2[k]['id']+"'>"+cityArr2[k]['name']+"</option>";
+                }
+                $("#city").html(cityHTML2);
+            });
+
+            $(".search_button").click(function(){
+                var loading = layer.load();
+                var keyword = $(".search_input").val();
+                var proviceId = $("#province").val();
+                var cityId = $("#city").val();
+                var type = $("#type").val();
+                var lng = $("#lng").val();
+                var lat = $("#lat").val();
+                $.ajax({
+                    url : 'app.php',
+                    type : 'get',
+                    data : {proviceId:proviceId,cityId:cityId,lng:lng,lat:lat,keyword:keyword,type:type,page:1},
+                    dataType : 'json',
+                    success : function(data){
+						$("#page").val(2);
+                        $("#list").empty();
+                        var json = eval("("+data+")");
+                        var html = '';
+                        for(var i=0; i<json['dealers'].length; i++){
+                            html += "<div class='list_box'> <ul> <li> <span>"+json['dealers'][i].name+"</span> <span class='distance'>"+json['dealers'][i].distance+"</span> </li> <li class='phone'>"+json['dealers'][i].phone+"</li> <li class='address'> <p class='openmap' lng='"+json['dealers'][i].lng+"' lat='"+json['dealers'][i].lat+"'>"+json['dealers'][i].address+"</p> </li> </ul> </div>";
+
+                        }
+                        $("#list").append(html);
+                        layer.close(loading);
+                    }
+                });
+            });
+
+        });
+
+    </script>
+
+    <script>
+        function getCheck(){
+            var documentH = document.documentElement.clientHeight;
+
+            var scrollH = document.documentElement.scrollTop || document.body.scrollTop;
+//            alert(documentH+scrollH+":"+getLastH());
+            return documentH+scrollH>=$("#list").height() ?true:false;
+        }
+
+        $(function(){
+
+            var action = true;
+            //滚动事件
+
+                $(window).scroll(function(){
+                    //判断屏幕高度+滚动高度>最大的ul高度
+                    if(getCheck()){
+                        var page = $("#page").val();
+                        var keyword = $(".search_input").val();
+                        var proviceId = $("#province").val();
+                        var cityId = $("#city").val();
+                        var lng = $("#lng").val();
+                        var lat = $("#lat").val();
+                        if(action){
+                            action = false;
+                            $("#load").show();
+                            $.ajax({
+                                url : 'app.php',
+                                type : 'get',
+                                data : {proviceId:proviceId,cityId:cityId,lng:lng,lat:lat,keyword:keyword,page:page},
+                                dataType : 'json',
+                                success : function(data){
+									page++;
+									$("#page").val(page);
+                                    var json = eval("("+data+")");
+                                    var html = '';
+                                    for(var i=0; i<json['dealers'].length; i++){
+                                        html += "<div class='list_box'> <ul> <li> <span>"+json['dealers'][i].name+"</span> <span class='distance'>"+json['dealers'][i].distance+"</span> </li> <li class='phone'>"+json['dealers'][i].phone+"</li> <li class='address'> <p class='openmap' lng='"+json['dealers'][i].lng+"' lat='"+json['dealers'][i].lat+"'>"+json['dealers'][i].address+"</p> </li> </ul> </div>";
+
+                                    }
+                                    $("#list").append(html);
+                                    action = true;
+                                    $("#load").hide();
+                                }
+                            });
+
+                        }
+                    }
+
+                });
+
+                $(document).on('click','.openmap',function(e){
+//                    document.documentElement.style.overflow='hidden';
+//                    document.body.style.overflow='hidden';
+//                    document.documentElement.style.overflow="hidden";
+//                    document.documentElement.style.position='fixed';
+
+//                    window.ontouchmove=function(e) {
+//                        e.preventDefault && e.preventDefault();
+//                        e.returnValue = false;
+//                        e.stopPropagation && e.stopPropagation();
+//                        return false;
+//                    }
+
+
+
+                    //alert(document.documentElement.clientHeight);
+                    //document.getElementsByTagName('body')[0].style.height = document.documentElement.clientHeight;+'px';
+                    //$('body,html').animate({ scrollTop: 0 }, 0);
+                    var lng = $(this).attr('lng');
+                    var lat = $(this).attr('lat');
+                    var destination = $(this).html();
+                    //var origin = $("#origin").val();
+                    var name = $(this).parent().prev().prev().children().html();
+
+                    //location.href='map.php?'+'lng='+lng+'&lat='+lat+'&origin='+origin+'&destination='+destination;
+                    //var url = 'http://api.map.baidu.com/marker?location='+lng+','+lat+'&amp;title='+name+'&amp;content='+destination+'&amp;output=html&amp;src=weixin';
+                    //var url = 'http://api.map.baidu.com/marker?location='+lng+','+lat+'&title='+name+'&content='+destination+'&output=html&src=weixin';
+                    var url = 'http://api.map.baidu.com/marker?location='+lat+','+lng+'&title='+name+'&content='+destination+'&output=html&src=yourComponyName|yourAppName';
+                    //document.write(url);
+
+                        //var url = 'http://map.baidu.com/mobile/webapp/place/marker/qt=inf&vt=map&act=read_share&code=75/third_party=uri_api&point='+lng+'|'+lat+'&title='+name+'&content='+destination;
+
+                    //var url = 'http://api.map.baidu.com/marker?location='+lng+','+lng+'&title='+origin+'&content='+destination+'&output=html';
+
+                    location.href = url;
+//                    layer.open({
+//                        move: false,
+//                        fix: false,
+//                        type: 2,
+//                        title: '地图展示',
+//                        closeBtn: 1,
+//                        shadeClose: true,
+//                        shade: 0.8,
+//                        area: ['100%', '100%'],
+//                        content: 'map.php?'+'lng='+lng+'&lat='+lat+'&origin='+origin+'&destination='+destination,
+//                        cancel:function(){
+//
+//                        }
+//                    });
+
+                });
+
+
+        });
+
+
+    </script>
+
+</body>
+</html>
